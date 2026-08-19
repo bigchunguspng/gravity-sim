@@ -5,8 +5,8 @@ namespace GravitySimulator;
 public class Game
 {
     private const int
-        W = 640,
-        H = 480,
+        W = 1280,
+        H = 960,
         M = 25;
 
     public void Run()
@@ -21,6 +21,13 @@ public class Game
 
         while (!Raylib.WindowShouldClose())
         {
+            // INPUT
+            var restart = Raylib.IsKeyPressed(KeyboardKey.Enter);
+            if (restart)
+            {
+                s.Init(count, W, H);
+            }
+
             // LOGIC
             s.Tick();
 
@@ -32,8 +39,7 @@ public class Game
                 {
                     var x = (int)s.PX[i];
                     var y = (int)s.PY[i];
-                    var m = s.Mass[i]; // vol sphere = 4/3 pi rrr   r = root3(3 mass / 4 pi)
-                    var r = (float)Math.Pow(0.75 * m / Math.PI, 1 / 3.0);
+                    var r = (float)s.GetParticleRadius(i, 2);
                     Raylib.DrawCircle(x, y, r, Color.White);
                 }
                 Raylib.DrawFPS(10, 10);

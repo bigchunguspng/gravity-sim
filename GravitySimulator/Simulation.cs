@@ -16,11 +16,16 @@ public class Simulation
     {
         PX = InitList(count, 0, width);
         PY = InitList(count, 0, height);
-        VX = InitList(count, 0, 0);
-        VY = InitList(count, 0, 0);
+        VX = InitList(count, -1, 1);
+        VY = InitList(count, -1, 1);
         AX = new float[count];
         AY = new float[count];
-        Mass = InitList(count, 1, 10);
+        Mass = InitList(count, 0, 8);
+
+        for (var i = 0; i < count; i++)
+        {
+            Mass[i] = (float)Math.Pow(2, Mass[i]);
+        }
     }
 
     private static float[] InitList(int count, float min, float max)
@@ -65,5 +70,10 @@ public class Simulation
             PX[i] += VX[i];
             PY[i] += VY[i];
         }
+    }
+
+    public double GetParticleRadius(int i, float multiplier)
+    {
+        return multiplier * Math.Pow(0.75 * Mass[i] / Math.PI, 1 / 3.0);
     }
 }
