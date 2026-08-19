@@ -43,7 +43,7 @@ public class Game
                 s.Init(count, W, H, SUN);
                 offset = new Vector2();
                 Array.Clear(trails);
-                trail_frame_last = 0;
+                trail_frame_last  = 0;
                 trail_frame_first = 0;
             }
 
@@ -51,6 +51,13 @@ public class Game
             if (toggle_follow_sun)
             {
                 follow_sun = !follow_sun;
+
+                if (follow_sun)
+                {
+                    Array.Clear(trails);
+                    trail_frame_last  = 0;
+                    trail_frame_first = 0;
+                }
             }
 
             if (follow_sun)
@@ -135,3 +142,6 @@ public class Game
 }
 // variable color
 // 10 seconds
+
+// todo toggle follow sun to ON ?  offset trails to match sun pos (currently: clear)
+// todo drag space ?  offset trails
