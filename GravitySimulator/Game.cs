@@ -76,7 +76,7 @@ public class Game
                 {
                     var x = (int)(offset.X + s.PX[i]);
                     var y = (int)(offset.Y + s.PY[i]);
-                    var r = (float)s.GetParticleRadius(i, 2);
+                    var r = s.R[i] * 2;
                     Raylib.DrawCircle(x, y, r, Color.White);
                 }
                 Raylib.DrawFPS(10, 10);

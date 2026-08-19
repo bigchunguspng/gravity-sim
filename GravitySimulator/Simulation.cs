@@ -5,13 +5,14 @@ public class Simulation
     public const double G = 1; // 6.6743E-11 too small lol))
     public const int MAX_MASS_POW = 5;
 
-    public float[] PX;
+    public float[] PX; // Position
     public float[] PY;
-    public float[] VX;
+    public float[] VX; // Velocity
     public float[] VY;
-    public float[] AX;
+    public float[] AX; // Acceleration
     public float[] AY;
-    public float[] Mass;
+    public float[] R; // Radius
+    public float[] M; // Mass
 
     public void Init(int count, float width, float height, bool sun)
     {
@@ -22,19 +23,25 @@ public class Simulation
         VY = InitList(count, -vmax, vmax);
         AX = new float[count];
         AY = new float[count];
-        Mass = InitList(count, 0, MAX_MASS_POW);
+        M  = InitList(count, 0, MAX_MASS_POW);
+        R  = new float[count];
 
         if (sun) // have 1 massive particle at the center
         {
             PX[0] = width  / 2;
             PY[0] = height / 2;
             VX[0] = VY[0] = 0;
-            Mass[0] = (float)(MAX_MASS_POW + Math.E);
+            M[0] = (float)(MAX_MASS_POW + Math.E);
         }
 
         for (var i = 0; i < count; i++) // distribute mass exponentially
         {
-            Mass[i] = (float)Math.Pow(Math.E, Mass[i]);
+            M[i] = (float)Math.Pow(Math.E, M[i]);
+        }
+
+        for (int i = 0; i < count; i++) // calculate radii
+        {
+            R[i] = (float)Math.Pow(0.75 * M[i] / Math.PI, 1 / 3.0);
         }
     }
 
@@ -51,7 +58,7 @@ public class Simulation
 
     public void Tick()
     {
-        var count = Mass.Length;
+        var count = M.Length;
         
         // calculate acceleration
         for (var i = 0; i < count; i++) // for each particle
@@ -64,8 +71,8 @@ public class Simulation
                 var dx = PX[i] - PX[j];
                 var dy = PY[i] - PY[j];
                 var d = Math.Sqrt(dx * dx + dy * dy);
-                var ax = G * Mass[j] * dx / (d * d * d);
-                var ay = G * Mass[j] * dy / (d * d * d);
+                var ax = G * M[j] * dx / (d * d * d);
+                var ay = G * M[j] * dy / (d * d * d);
                 AX[i] -= (float)ax;
                 AY[i] -= (float)ay;
             }
@@ -80,10 +87,5 @@ public class Simulation
             PX[i] += VX[i];
             PY[i] += VY[i];
         }
-    }
-
-    public double GetParticleRadius(int i, float multiplier)
-    {
-        return multiplier * Math.Pow(0.75 * Mass[i] / Math.PI, 1 / 3.0);
     }
 }
