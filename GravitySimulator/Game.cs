@@ -11,7 +11,8 @@ public class Game
         M = 25;
 
     private const bool
-        SUN = true;
+        SUN = true,
+        FOLLOW_SUN_DEFAULT = true;
 
     public void Run()
     {
@@ -25,6 +26,7 @@ public class Game
 
         var mouse_down_prev_frame = false;
         var offset = new Vector2();
+        var follow_sun = FOLLOW_SUN_DEFAULT;
 
         while (!Raylib.WindowShouldClose())
         {
@@ -34,6 +36,19 @@ public class Game
             {
                 s.Init(count, W, H, SUN);
                 offset = new Vector2();
+            }
+
+            var toggle_follow_sun = Raylib.IsKeyPressed(KeyboardKey.Backslash);
+            if (toggle_follow_sun)
+            {
+                follow_sun = !follow_sun;
+            }
+
+            if (follow_sun)
+            {
+                var c = Raylib.GetScreenCenter();
+                offset.X = c.X - s.PX[0];
+                offset.Y = c.Y - s.PY[0];
             }
 
             var mouse_down = Raylib.IsMouseButtonDown(MouseButton.Left);
