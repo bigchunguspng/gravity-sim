@@ -9,15 +9,18 @@ public class Game
         H = 960,
         M = 25;
 
+    private const bool
+        SUN = true;
+
     public void Run()
     {
         Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
         Raylib.InitWindow(W, H, "Gravity Simulator");
         Raylib.SetTargetFPS(60);
 
-        const int count = 25;
+        const int count = 100;
         var s = new Simulation();
-        s.Init(count, W, H);
+        s.Init(count, W, H, SUN);
 
         while (!Raylib.WindowShouldClose())
         {
@@ -25,7 +28,7 @@ public class Game
             var restart = Raylib.IsKeyPressed(KeyboardKey.Enter);
             if (restart)
             {
-                s.Init(count, W, H);
+                s.Init(count, W, H, SUN);
             }
 
             // LOGIC
