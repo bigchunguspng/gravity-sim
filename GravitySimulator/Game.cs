@@ -8,7 +8,9 @@ public class Game
     private const int
         W = 1280,
         H = 960,
-        M = 25;
+        FPS = 60,
+        TRAIL_LEN_SEC = 3,
+        TRAIL_LEN_FRAMES = TRAIL_LEN_SEC * FPS;
 
     private const bool
         SUN = true,
@@ -18,7 +20,7 @@ public class Game
     {
         Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
         Raylib.InitWindow(W, H, "Gravity Simulator");
-        Raylib.SetTargetFPS(60);
+        Raylib.SetTargetFPS(FPS);
 
         const int count = 100;
         var s = new Simulation();
@@ -27,6 +29,10 @@ public class Game
         var mouse_down_prev_frame = false;
         var offset = new Vector2();
         var follow_sun = FOLLOW_SUN_DEFAULT;
+        var positions = new Vector2[count];
+        var trails = new Vector2[count * TRAIL_LEN_FRAMES]; // 100p * 10s * 60f/s = 60000 pf * 8B = 480kB
+        var trail_frame_last  = 0;
+        var trail_frame_first = 0;
 
         while (!Raylib.WindowShouldClose())
         {
@@ -36,6 +42,9 @@ public class Game
             {
                 s.Init(count, W, H, SUN);
                 offset = new Vector2();
+                Array.Clear(trails);
+                trail_frame_last = 0;
+                trail_frame_first = 0;
             }
 
             var toggle_follow_sun = Raylib.IsKeyPressed(KeyboardKey.Backslash);
@@ -49,40 +58,80 @@ public class Game
                 var c = Raylib.GetScreenCenter();
                 offset.X = c.X - s.PX[0];
                 offset.Y = c.Y - s.PY[0];
-            }
 
-            var mouse_down = Raylib.IsMouseButtonDown(MouseButton.Left);
-            if (mouse_down && !mouse_down_prev_frame)
-            {
-                mouse_down_prev_frame = true;
-            }
-            else if (mouse_down && mouse_down_prev_frame)
-            {
-                offset += Raylib.GetMouseDelta();
+                mouse_down_prev_frame = false;
             }
             else
             {
-                mouse_down_prev_frame = false;
+                var mouse_down = Raylib.IsMouseButtonDown(MouseButton.Left);
+                if (mouse_down && !mouse_down_prev_frame)
+                {
+                    mouse_down_prev_frame = true;
+                }
+                else if (mouse_down && mouse_down_prev_frame)
+                {
+                    offset += Raylib.GetMouseDelta();
+                }
+                else
+                {
+                    mouse_down_prev_frame = false;
+                }
             }
 
             // LOGIC
-            s.Tick();
-
-            // RENDER
-            Raylib.BeginDrawing();
             {
-                Raylib.ClearBackground(Color.Black);
+                s.Tick();
+
                 for (var i = 0; i < count; i++)
                 {
-                    var x = (int)(offset.X + s.PX[i]);
-                    var y = (int)(offset.Y + s.PY[i]);
-                    var r = s.R[i] * 2;
-                    Raylib.DrawCircle(x, y, r, Color.White);
+                    var x = offset.X + s.PX[i];
+                    var y = offset.Y + s.PY[i];
+                    positions[i] = new Vector2(x, y);
+                    trails[count * trail_frame_last + i] = new Vector2(x, y);
                 }
-                Raylib.DrawFPS(10, 10);
             }
-            Raylib.EndDrawing();
+
+            // RENDER
+            {
+                Raylib.BeginDrawing();
+                Raylib.ClearBackground(Color.Black);
+
+                // draw trails
+                for (var f = trail_frame_first; f != trail_frame_last; f = (f + 1) % TRAIL_LEN_FRAMES) // for each frame
+                {
+                    var f2 = (f + 1) % TRAIL_LEN_FRAMES;
+                    for (var i = 0; i < count; i++) // for each particle
+                    {
+                        var v1 = trails[count * f  + i]; // [f0 coords] [f1 coords] [...] [fN coords]
+                        var v2 = trails[count * f2 + i]; //             \---------\ L = count 
+                        var v = 128; // todo  old 0 .. new 128
+                        Raylib.DrawLineEx(v1, v2, 1, new Color(v, v, v));
+                    }
+                }
+
+                // draw particles
+                for (var i = 0; i < count; i++)
+                {
+                    var pos = positions[i];
+                    var r = s.R[i] * 2;
+                    Raylib.DrawCircle((int)pos.X, (int)pos.Y, r, Color.White);
+                }
+
+                Raylib.DrawText($"{trail_frame_first} {trail_frame_last}", 10, 50, 20, Color.Red);
+                Raylib.DrawFPS(10, 10);
+                Raylib.EndDrawing();
+            }
+            
+            // LOGIC II
+            {
+                trail_frame_last = (trail_frame_last + 1) % TRAIL_LEN_FRAMES;
+
+                if (trail_frame_first == trail_frame_last)
+                    trail_frame_first = (trail_frame_first + 1) % TRAIL_LEN_FRAMES;
+            }
         }
         Raylib.CloseWindow();
     }
 }
+// variable color
+// 10 seconds
