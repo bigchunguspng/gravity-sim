@@ -1,4 +1,5 @@
-﻿using Raylib_cs;
+﻿using System.Numerics;
+using Raylib_cs;
 
 namespace GravitySimulator;
 
@@ -22,6 +23,9 @@ public class Game
         var s = new Simulation();
         s.Init(count, W, H, SUN);
 
+        var mouse_down_prev_frame = false;
+        var offset = new Vector2();
+
         while (!Raylib.WindowShouldClose())
         {
             // INPUT
@@ -29,6 +33,21 @@ public class Game
             if (restart)
             {
                 s.Init(count, W, H, SUN);
+                offset = new Vector2();
+            }
+
+            var mouse_down = Raylib.IsMouseButtonDown(MouseButton.Left);
+            if (mouse_down && !mouse_down_prev_frame)
+            {
+                mouse_down_prev_frame = true;
+            }
+            else if (mouse_down && mouse_down_prev_frame)
+            {
+                offset += Raylib.GetMouseDelta();
+            }
+            else
+            {
+                mouse_down_prev_frame = false;
             }
 
             // LOGIC
@@ -40,8 +59,8 @@ public class Game
                 Raylib.ClearBackground(Color.Black);
                 for (var i = 0; i < count; i++)
                 {
-                    var x = (int)s.PX[i];
-                    var y = (int)s.PY[i];
+                    var x = (int)(offset.X + s.PX[i]);
+                    var y = (int)(offset.Y + s.PY[i]);
                     var r = (float)s.GetParticleRadius(i, 2);
                     Raylib.DrawCircle(x, y, r, Color.White);
                 }
