@@ -9,7 +9,7 @@ public class Game
         W = 1280,
         H = 960,
         FPS = 60,
-        TRAIL_LEN_SEC = 3,
+        TRAIL_LEN_SEC = 10,
         TRAIL_LEN_FRAMES = TRAIL_LEN_SEC * FPS;
 
     private const bool
@@ -104,16 +104,22 @@ public class Game
                 Raylib.ClearBackground(Color.Black);
 
                 // draw trails
+                var f_abs = trail_frame_first < trail_frame_last // 0 .. trail frames length
+                    ?        TRAIL_LEN_FRAMES - trail_frame_last
+                    : 0.0;
                 for (var f = trail_frame_first; f != trail_frame_last; f = (f + 1) % TRAIL_LEN_FRAMES) // for each frame
                 {
+                    var f_percent = f_abs / TRAIL_LEN_FRAMES;
                     var f2 = (f + 1) % TRAIL_LEN_FRAMES;
                     for (var i = 0; i < count; i++) // for each particle
                     {
                         var v1 = trails[count * f  + i]; // [f0 coords] [f1 coords] [...] [fN coords]
                         var v2 = trails[count * f2 + i]; //             \---------\ L = count 
-                        var v = 128; // todo  old 0 .. new 128
+                        var v = (byte)(128 * f_percent);
                         Raylib.DrawLineEx(v1, v2, 1, new Color(v, v, v));
                     }
+
+                    f_abs++;
                 }
 
                 // draw particles
@@ -140,8 +146,6 @@ public class Game
         Raylib.CloseWindow();
     }
 }
-// variable color
-// 10 seconds
 
 // todo toggle follow sun to ON ?  offset trails to match sun pos (currently: clear)
 // todo drag space ?  offset trails
