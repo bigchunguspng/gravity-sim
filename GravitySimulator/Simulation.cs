@@ -2,8 +2,13 @@
 
 public class Simulation
 {
-    public const double G = 0.25;
-    public const int
+    private const double
+        G = 0.25;
+
+    private const float
+        VELOCITY_MULTIPLIER = 0.25F;
+
+    private const int
         MAX_MASS_POW = 5,
         NO_MERGE = -1;
 
@@ -21,7 +26,7 @@ public class Simulation
 
     public void Init(int count, float width, float height, bool sun)
     {
-        var vmax = 0.25F * (sun ? 3 : 2);
+        var vmax = VELOCITY_MULTIPLIER * (sun ? 3 : 2);
         ActiveCount = count;
         PX = InitList(count, 0, width);
         PY = InitList(count, 0, height);

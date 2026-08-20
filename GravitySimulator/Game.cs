@@ -6,6 +6,7 @@ namespace GravitySimulator;
 public class Game
 {
     private const int
+        COUNT = 500,
         W = 1280,
         H = 960,
         FPS = 60,
@@ -13,7 +14,7 @@ public class Game
         TRAIL_LEN_FRAMES = TRAIL_LEN_SEC * FPS;
 
     private const bool
-        SUN = true,
+        SUN = false,
         FOLLOW_SUN_DEFAULT = true;
 
     private const float
@@ -25,15 +26,14 @@ public class Game
         Raylib.InitWindow(W, H, "Gravity Simulator");
         Raylib.SetTargetFPS(FPS);
 
-        const int count = 100;
         var s = new Simulation();
-        s.Init(count, W, H, SUN);
+        s.Init(COUNT, W, H, SUN);
 
         var mouse_down_prev_frame = false;
         var offset = new Vector2();
         var follow_sun = SUN && FOLLOW_SUN_DEFAULT;
-        var positions = new Vector2[count];
-        var trails = new Vector2[count * TRAIL_LEN_FRAMES]; // 100p * 10s * 60f/s = 60000 pf * 8B = 480kB
+        var positions = new Vector2[COUNT];
+        var trails = new Vector2[COUNT * TRAIL_LEN_FRAMES]; // 100p * 10s * 60f/s = 60000 pf * 8B = 480kB
         var trail_frame_last  = 0;
         var trail_frame_first = 0;
 
@@ -43,7 +43,7 @@ public class Game
             var restart = Raylib.IsKeyPressed(KeyboardKey.Enter);
             if (restart)
             {
-                s.Init(count, W, H, SUN);
+                s.Init(COUNT, W, H, SUN);
                 offset = new Vector2();
                 Array.Clear(trails);
                 trail_frame_last  = 0;
@@ -70,7 +70,7 @@ public class Game
                 if (!SUN) // get particle with max mass
                 {
                     var max_mass = 0.0F;
-                    for (var i = 0; i < count; i++)
+                    for (var i = 0; i < COUNT; i++)
                     {
                         if (s.ON[i] && s.M[i] > max_mass)
                         {
@@ -105,14 +105,14 @@ public class Game
             {
                 s.Tick();
 
-                for (var i = 0; i < count; i++)
+                for (var i = 0; i < COUNT; i++)
                 {
                     if (!s.ON[i]) continue;
 
                     var x = offset.X + s.PX[i];
                     var y = offset.Y + s.PY[i];
                     positions[i] = new Vector2(x, y);
-                    trails[count * trail_frame_last + i] = new Vector2(x, y);
+                    trails[COUNT * trail_frame_last + i] = new Vector2(x, y);
                 }
             }
 
@@ -129,12 +129,12 @@ public class Game
                 {
                     var f_percent = f_abs / TRAIL_LEN_FRAMES;
                     var f2 = (f + 1) % TRAIL_LEN_FRAMES;
-                    for (var i = 0; i < count; i++) // for each particle
+                    for (var i = 0; i < COUNT; i++) // for each particle
                     {
                         if (!s.ON[i]) continue; // todo keep rest of trail (currently it will disappear) 
 
-                        var v1 = trails[count * f  + i]; // [f0 coords] [f1 coords] [...] [fN coords]
-                        var v2 = trails[count * f2 + i]; //             \---------\ L = count 
+                        var v1 = trails[COUNT * f  + i]; // [f0 coords] [f1 coords] [...] [fN coords]
+                        var v2 = trails[COUNT * f2 + i]; //             \---------\ L = count 
                         var v = (byte)(128 * f_percent);
                         Raylib.DrawLineEx(v1, v2, 1, new Color(v, v, v));
                     }
@@ -143,7 +143,7 @@ public class Game
                 }
 
                 // draw particles
-                for (var i = 0; i < count; i++)
+                for (var i = 0; i < COUNT; i++)
                 {
                     if (!s.ON[i]) continue;
 
@@ -152,7 +152,7 @@ public class Game
                     Raylib.DrawCircle((int)pos.X, (int)pos.Y, r, Color.White);
                 }
 
-                Raylib.DrawText($"{s.ActiveCount}/{count}", 10, 40, 20, Color.Blue);
+                Raylib.DrawText($"{s.ActiveCount}/{COUNT}", 10, 40, 20, Color.Blue);
                 Raylib.DrawFPS(10, 10);
                 Raylib.EndDrawing();
             }
