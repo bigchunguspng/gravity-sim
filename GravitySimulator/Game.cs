@@ -91,6 +91,8 @@ public class Game
 
                 for (var i = 0; i < count; i++)
                 {
+                    if (!s.ON[i]) continue;
+
                     var x = offset.X + s.PX[i];
                     var y = offset.Y + s.PY[i];
                     positions[i] = new Vector2(x, y);
@@ -113,6 +115,8 @@ public class Game
                     var f2 = (f + 1) % TRAIL_LEN_FRAMES;
                     for (var i = 0; i < count; i++) // for each particle
                     {
+                        if (!s.ON[i]) continue; // todo keep rest of trail (currently it will disappear) 
+
                         var v1 = trails[count * f  + i]; // [f0 coords] [f1 coords] [...] [fN coords]
                         var v2 = trails[count * f2 + i]; //             \---------\ L = count 
                         var v = (byte)(128 * f_percent);
@@ -125,12 +129,14 @@ public class Game
                 // draw particles
                 for (var i = 0; i < count; i++)
                 {
+                    if (!s.ON[i]) continue;
+
                     var pos = positions[i];
                     var r = s.R[i] * 2;
                     Raylib.DrawCircle((int)pos.X, (int)pos.Y, r, Color.White);
                 }
 
-                Raylib.DrawText($"{trail_frame_first} {trail_frame_last}", 10, 50, 20, Color.Red);
+                Raylib.DrawText($"{s.ActiveCount}/{count}", 10, 40, 20, Color.Blue);
                 Raylib.DrawFPS(10, 10);
                 Raylib.EndDrawing();
             }
