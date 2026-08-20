@@ -13,6 +13,7 @@ public class Simulation
         NO_MERGE = -1;
 
     public   int   ActiveCount;
+    public   int   SunIndex;
     public  bool[] ON; // Status
     public float[] PX; // Position
     public float[] PY;
@@ -114,6 +115,7 @@ public class Simulation
 
         // merge particles on merge list
         // tiny one stores huge index!
+        var activeCount = ActiveCount;
         for (var i = 0; i < count; i++)
         {
             var tiny = i;
@@ -167,10 +169,32 @@ public class Simulation
         {
             MI[i] = -1;
         }
+
+        if (activeCount != ActiveCount)
+        {
+            SunIndex = FindSunIndex();
+        }
     }
 
     private float CalculateRadius(int i)
     {
         return (float)Math.Pow(0.75 * M[i] / Math.PI, 1 / 3.0);
+    }
+
+    private int FindSunIndex()
+    {
+        var max_mass = 0.0F;
+        var sun_i = 0;
+        var count = M.Length;
+        for (var i = 0; i < count; i++)
+        {
+            if (ON[i] && M[i] > max_mass)
+            {
+                max_mass = M[i];
+                sun_i = i;
+            }
+        }
+
+        return sun_i;
     }
 }

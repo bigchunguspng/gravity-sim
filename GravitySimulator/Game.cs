@@ -66,19 +66,7 @@ public class Game
             if (follow_sun)
             {
                 var c = Raylib.GetScreenCenter();
-                var sun_i = 0;
-                if (!SUN) // get particle with max mass
-                {
-                    var max_mass = 0.0F;
-                    for (var i = 0; i < COUNT; i++)
-                    {
-                        if (s.ON[i] && s.M[i] > max_mass)
-                        {
-                            max_mass = s.M[i];
-                            sun_i = i;
-                        }
-                    }
-                }
+                var sun_i = s.SunIndex;
                 offset.X = c.X - s.PX[sun_i];
                 offset.Y = c.Y - s.PY[sun_i];
 
