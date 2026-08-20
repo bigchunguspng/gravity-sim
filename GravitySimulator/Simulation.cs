@@ -2,7 +2,7 @@
 
 public class Simulation
 {
-    public const double G = 1; // 6.6743E-11 too small lol))
+    public const double G = 0.25;
     public const int
         MAX_MASS_POW = 5,
         NO_MERGE = -1;
@@ -21,7 +21,7 @@ public class Simulation
 
     public void Init(int count, float width, float height, bool sun)
     {
-        var vmax = sun ? 3 : 1;
+        var vmax = 0.25F * (sun ? 3 : 2);
         ActiveCount = count;
         PX = InitList(count, 0, width);
         PY = InitList(count, 0, height);
@@ -86,6 +86,7 @@ public class Simulation
                     var huge  = ri > rj ? i : j;
                     var tiny = ri > rj ? j : i;
                     MI[tiny] = huge; // tiny store huge index, so 2+ tiny can be merged into 1 huge
+                    // todo fix tiny particle on big speed can escape merge by phasing thru huge one
                 }
                 var ax = G * M[j] * dx / (d * d * d);
                 var ay = G * M[j] * dy / (d * d * d);

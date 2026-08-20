@@ -16,6 +16,9 @@ public class Game
         SUN = true,
         FOLLOW_SUN_DEFAULT = true;
 
+    private const float
+        RADIUS_MULTIPLIER = 1.0F;
+
     public void Run()
     {
         Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
@@ -28,7 +31,7 @@ public class Game
 
         var mouse_down_prev_frame = false;
         var offset = new Vector2();
-        var follow_sun = FOLLOW_SUN_DEFAULT;
+        var follow_sun = SUN && FOLLOW_SUN_DEFAULT;
         var positions = new Vector2[count];
         var trails = new Vector2[count * TRAIL_LEN_FRAMES]; // 100p * 10s * 60f/s = 60000 pf * 8B = 480kB
         var trail_frame_last  = 0;
@@ -63,8 +66,21 @@ public class Game
             if (follow_sun)
             {
                 var c = Raylib.GetScreenCenter();
-                offset.X = c.X - s.PX[0];
-                offset.Y = c.Y - s.PY[0];
+                var sun_i = 0;
+                if (!SUN) // get particle with max mass
+                {
+                    var max_mass = 0.0F;
+                    for (var i = 0; i < count; i++)
+                    {
+                        if (s.ON[i] && s.M[i] > max_mass)
+                        {
+                            max_mass = s.M[i];
+                            sun_i = i;
+                        }
+                    }
+                }
+                offset.X = c.X - s.PX[sun_i];
+                offset.Y = c.Y - s.PY[sun_i];
 
                 mouse_down_prev_frame = false;
             }
@@ -132,7 +148,7 @@ public class Game
                     if (!s.ON[i]) continue;
 
                     var pos = positions[i];
-                    var r = s.R[i] * 2;
+                    var r = s.R[i] * RADIUS_MULTIPLIER;
                     Raylib.DrawCircle((int)pos.X, (int)pos.Y, r, Color.White);
                 }
 
