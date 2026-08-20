@@ -14,7 +14,7 @@ public class Game
         TRAIL_LEN_FRAMES = TRAIL_LEN_SEC * FPS;
 
     private const bool
-        SUN = false,
+        SUN = true,
         FOLLOW_SUN_DEFAULT = true;
 
     private const float
@@ -149,7 +149,13 @@ public class Game
 
                     var pos = positions[i];
                     var r = s.R[i] * RADIUS_MULTIPLIER;
-                    Raylib.DrawCircle((int)pos.X, (int)pos.Y, r, Color.White);
+                    var m = s.M[i];
+                    var v = m < 1024
+                        ? 1.0
+                        : 1.0 - Math.Log(m / 1024.0) / Math.Log(32.0); // v(1k) = 1  v(32k) = 0
+                    var blue = (int)(255 * Math.Clamp(v, 0, 1));
+                    var color = new Color(255, 255, blue);
+                    Raylib.DrawCircle((int)pos.X, (int)pos.Y, r, color);
                 }
 
                 Raylib.DrawText($"{s.ActiveCount}/{COUNT}", 10, 40, 20, Color.Blue);
@@ -171,3 +177,4 @@ public class Game
 
 // todo toggle follow sun to ON ?  offset trails to match sun pos (currently: clear)
 // todo drag space ?  offset trails
+// todo backspace = pause, launch particles with mouse
