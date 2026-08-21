@@ -100,11 +100,6 @@ public class Game
         if (toggle_follow_sun)
         {
             follow_sun = !follow_sun;
-
-            if (follow_sun)
-            {
-                ResetTrails();
-            }
         }
 
         var mouse_down = Raylib.IsMouseButtonDown(MouseButton.Left);
@@ -148,10 +143,9 @@ public class Game
                 continue;
             }
 
-            var x = offset.X + s.PX[i];
-            var y = offset.Y + s.PY[i];
-            positions[i] = new Vector2(x, y);
-            trails[COUNT * trails_frame_newest + i] = new Vector2(x, y);
+            var x = s.PX[i];
+            var y = s.PY[i];
+            positions[i] = trails[COUNT * trails_frame_newest + i] = new Vector2(x, y);
         }
     }
 
@@ -181,8 +175,8 @@ public class Game
                     if (skip_particle) continue;
                 }
 
-                var v1 = trails[COUNT * f1 + j]; // [f0 coords] [f1 coords] [...] [fN coords]
-                var v2 = trails[COUNT * f2 + j]; //             \---------\ L = count
+                var v1 = offset + trails[COUNT * f1 + j]; // [f0 coords] [f1 coords] [...] [fN coords]
+                var v2 = offset + trails[COUNT * f2 + j]; //             \---------\ L = count
                 Raylib.DrawLineEx(v1, v2, 1, color);
             }
         }
@@ -193,7 +187,7 @@ public class Game
         {
             if (!s.ON[i]) continue;
 
-            var pos = positions[i];
+            var pos = offset + positions[i];
             var r = s.R[i] * RADIUS_MULTIPLIER;
             var m = s.M[i];
             var v = m < 1024
@@ -230,5 +224,5 @@ public class Game
     }
 }
 
-// todo store absolute pos as trail frames, account for offset on display
 // todo launch particles with mouse
+// todo s - sun space trails - get sun offset history probably
