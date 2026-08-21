@@ -201,7 +201,7 @@ public class Game
                     const string
                         help1 = "Particles: [alive / total]",
                         help2 = "Trail frames: [count / max count] [oldest / newest]",
-                        helpK = "Esc - Quit | F3 - Debug | Enter - Restart | \\ - Follow the Sun | Backspace - Pause | = - Step (when paused)";
+                        helpK = "Esc - Quit | F3 - Debug | Enter - Restart | \\ - Follow the Sun | Backspace - Pause | = - Step (when paused) | M1 - Drag space";
                     var h = Raylib.GetScreenHeight();
 
                     if (debug)
@@ -225,6 +225,5 @@ public class Game
     }
 }
 
-// todo toggle follow sun to ON ?  offset trails to match sun pos (currently: clear)
-// todo drag space ?  offset trails
-// todo backspace = pause, launch particles with mouse
+// todo store absolute pos as trail frames, account for offset on display
+// todo launch particles with mouse
