@@ -14,7 +14,7 @@ public class Game
         TRAIL_LEN_FRAMES = TRAIL_LEN_SEC * FPS;
 
     private const bool
-        SUN = true,
+        SUN = false,
         FOLLOW_SUN_DEFAULT = true;
 
     private const float
@@ -29,25 +29,44 @@ public class Game
         var s = new Simulation();
         s.Init(COUNT, W, H, SUN);
 
+        var pause = false;
         var mouse_down_prev_frame = false;
         var offset = new Vector2();
         var follow_sun = SUN && FOLLOW_SUN_DEFAULT;
         var positions = new Vector2[COUNT];
-        var trails = new Vector2[COUNT * TRAIL_LEN_FRAMES]; // 100p * 10s * 60f/s = 60000 pf * 8B = 480kB
-        var trail_frame_last  = 0;
-        var trail_frame_first = 0;
+        var trails    = new Vector2[COUNT * TRAIL_LEN_FRAMES]; // 100p * 10s * 60f/s = 60000 pf * 8B = 480kB
+        var trails_lo = new  int[COUNT]; // leftover frames counts for dead particles: 600 -> 0
+        var trails_td = new  int[COUNT]; // tfc value at particle death
+        int trails_frame_newest; // n
+        int trails_frame_oldest; // o
+        int trails_frames_count; // tfc
+
+        ResetTrails();
+
+        void ResetTrails()
+        {
+            Array.Clear(trails);
+            Array.Fill(trails_lo, -1);
+            Array.Fill(trails_td, -1);
+            trails_frame_newest = -1;
+            trails_frame_oldest = 0;
+            trails_frames_count = 0;
+        }
 
         while (!Raylib.WindowShouldClose())
         {
             // INPUT
+            var toggle_pause = Raylib.IsKeyPressed(KeyboardKey.Backspace);
+            if (toggle_pause) pause = !pause;
+
+            var step = pause && Raylib.IsKeyPressed(KeyboardKey.Equal);
+
             var restart = Raylib.IsKeyPressed(KeyboardKey.Enter);
             if (restart)
             {
                 s.Init(COUNT, W, H, SUN);
                 offset = new Vector2();
-                Array.Clear(trails);
-                trail_frame_last  = 0;
-                trail_frame_first = 0;
+                ResetTrails();
             }
 
             var toggle_follow_sun = Raylib.IsKeyPressed(KeyboardKey.Backslash);
@@ -57,9 +76,7 @@ public class Game
 
                 if (follow_sun)
                 {
-                    Array.Clear(trails);
-                    trail_frame_last  = 0;
-                    trail_frame_first = 0;
+                    ResetTrails();
                 }
             }
 
@@ -90,17 +107,35 @@ public class Game
             }
 
             // LOGIC
+            if (!pause || step)
             {
+                trails_frame_newest = (trails_frame_newest + 1) % TRAIL_LEN_FRAMES;
+
+                if (trails_frames_count == TRAIL_LEN_FRAMES)
+                    trails_frame_oldest = (trails_frame_oldest + 1) % TRAIL_LEN_FRAMES;
+                else
+                    trails_frames_count++;
+
                 s.Tick();
 
                 for (var i = 0; i < COUNT; i++)
                 {
-                    if (!s.ON[i]) continue;
+                    if (!s.ON[i])
+                    {
+                        ref var
+                            leftover_frames = ref trails_lo[i];
+                        if (leftover_frames == -1)
+                            leftover_frames = trails_td[i] = trails_frames_count;
+                        if (leftover_frames > 0)
+                            leftover_frames--;
+
+                        continue;
+                    }
 
                     var x = offset.X + s.PX[i];
                     var y = offset.Y + s.PY[i];
                     positions[i] = new Vector2(x, y);
-                    trails[COUNT * trail_frame_last + i] = new Vector2(x, y);
+                    trails[COUNT * trails_frame_newest + i] = new Vector2(x, y);
                 }
             }
 
@@ -110,24 +145,38 @@ public class Game
                 Raylib.ClearBackground(Color.Black);
 
                 // draw trails
-                var f_abs = trail_frame_first < trail_frame_last // 0 .. trail frames length
-                    ?        TRAIL_LEN_FRAMES - trail_frame_last
-                    : 0.0;
-                for (var f = trail_frame_first; f != trail_frame_last; f = (f + 1) % TRAIL_LEN_FRAMES) // for each frame
+                for (var i = 0; i < trails_frames_count - 1; i++)
                 {
-                    var f_percent = f_abs / TRAIL_LEN_FRAMES;
-                    var f2 = (f + 1) % TRAIL_LEN_FRAMES;
-                    for (var i = 0; i < COUNT; i++) // for each particle
+                    var f1 = (trails_frame_oldest + i) % TRAIL_LEN_FRAMES;
+                    var f2 =                  (f1 + 1) % TRAIL_LEN_FRAMES;
+
+                    // var fi = i + TRAIL_LEN_FRAMES - trails_frames_count; // used for trail brightness
+                    var rb = (double)i / trails_frames_count; // relative brightness
+                    var v = (byte)(128 * rb);
+                    var color = new Color(v, v, v);
+
+                    for (var j = 0; j < COUNT; j++) // for each particle
                     {
-                        if (!s.ON[i]) continue; // todo keep rest of trail (currently it will disappear) 
+                        if (!s.ON[j])
+                        {
+                            var lo = trails_lo[j]; // number of leftover frames
+                            if (lo == 0) continue;
 
-                        var v1 = trails[COUNT * f  + i]; // [f0 coords] [f1 coords] [...] [fN coords]
-                        var v2 = trails[COUNT * f2 + i]; //             \---------\ L = count 
-                        var v = (byte)(128 * f_percent);
-                        Raylib.DrawLineEx(v1, v2, 1, new Color(v, v, v));
+                            var tfc_at_death = trails_td[j];
+                            var i_top_margin_horizontal = tfc_at_death - 2  - trails_frame_oldest; // (trails_frames_count + lo) / 2;
+                            var i_bot_margin_upward     = tfc_at_death - lo - trails_frame_oldest; // (trails_frames_count - lo) / 2;
+                            
+                            var skip_particle = trails_frames_count < TRAIL_LEN_FRAMES || tfc_at_death < trails_frames_count
+                                //              ^ buffer not full                      OR particle died when buffer wasn't full
+                                ? i >= i_top_margin_horizontal || i <= i_bot_margin_upward
+                                : i >= lo - 1;
+                            if (skip_particle) continue;
+                        }
+
+                        var v1 = trails[COUNT * f1 + j]; // [f0 coords] [f1 coords] [...] [fN coords]
+                        var v2 = trails[COUNT * f2 + j]; //             \---------\ L = count
+                        Raylib.DrawLineEx(v1, v2, 1, color);
                     }
-
-                    f_abs++;
                 }
 
                 // draw particles
@@ -142,21 +191,21 @@ public class Game
                         ? 1.0
                         : 1.0 - Math.Log(m / 1024.0) / Math.Log(32.0); // v(1k) = 1  v(32k) = 0
                     var blue = (int)(255 * Math.Clamp(v, 0, 1));
-                    var color = new Color(255, 255, blue);
+                    var j5 = i < 5;
+                    var color = new Color(j5 ? 0: 255, 255, j5 ? 0 : blue);
                     Raylib.DrawCircle((int)pos.X, (int)pos.Y, r, color);
                 }
 
                 Raylib.DrawText($"{s.ActiveCount}/{COUNT}", 10, 40, 20, Color.Blue);
+                Raylib.DrawText($"{trails_frames_count} {trails_frame_oldest}/{trails_frame_newest}", 10, 70, 20, Color.Red);
+                // var x = 0;
+                // Raylib.DrawText($"{x}: {(s.ON[x] ? "+" : "-")} lo: {trails_lo[x]}/{trails_td[x]}", 10, 100 + 30*x++, 20, Color.White);
+                // Raylib.DrawText($"{x}: {(s.ON[x] ? "+" : "-")} lo: {trails_lo[x]}/{trails_td[x]}", 10, 100 + 30*x++, 20, Color.White);
+                // Raylib.DrawText($"{x}: {(s.ON[x] ? "+" : "-")} lo: {trails_lo[x]}/{trails_td[x]}", 10, 100 + 30*x++, 20, Color.White);
+                // Raylib.DrawText($"{x}: {(s.ON[x] ? "+" : "-")} lo: {trails_lo[x]}/{trails_td[x]}", 10, 100 + 30*x++, 20, Color.White);
+                // Raylib.DrawText($"{x}: {(s.ON[x] ? "+" : "-")} lo: {trails_lo[x]}/{trails_td[x]}", 10, 100 + 30*x++, 20, Color.White);
                 Raylib.DrawFPS(10, 10);
                 Raylib.EndDrawing();
-            }
-            
-            // LOGIC II
-            {
-                trail_frame_last = (trail_frame_last + 1) % TRAIL_LEN_FRAMES;
-
-                if (trail_frame_first == trail_frame_last)
-                    trail_frame_first = (trail_frame_first + 1) % TRAIL_LEN_FRAMES;
             }
         }
         Raylib.CloseWindow();

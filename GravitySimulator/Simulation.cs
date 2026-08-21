@@ -6,7 +6,7 @@ public class Simulation
         G = 0.25;
 
     private const float
-        VELOCITY_MULTIPLIER = 0.25F;
+        VELOCITY_MULTIPLIER = 0.025F;
 
     private const int
         MAX_MASS_POW = 5,
