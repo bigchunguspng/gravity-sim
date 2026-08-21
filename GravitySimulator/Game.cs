@@ -26,6 +26,7 @@ public class Game
     private bool pause;
     private bool step_once;
     private bool follow_sun = SUN && FOLLOW_SUN_DEFAULT;
+    private bool sun_space_trails = false;
     private Vector2 offset;
     private readonly Vector2[] positions = new Vector2[COUNT]; // (for convenience)
 
@@ -36,6 +37,9 @@ public class Game
     private int trails_frame_newest; // n
     private int trails_frame_oldest; // o
     private int trails_frames_count; // tfc
+
+    // temporary
+    private Vector2 screen_center;
 
     private void StartSimulation()
     {
@@ -80,6 +84,8 @@ public class Game
 
     private void HandleInput()
     {
+        screen_center = Raylib.GetScreenCenter();
+
         var toggle_debug = Raylib.IsKeyPressed(KeyboardKey.F3);
         if (toggle_debug) debug = !debug;
 
@@ -102,6 +108,9 @@ public class Game
             follow_sun = !follow_sun;
         }
 
+        var toggle_trails_space = Raylib.IsKeyPressed(KeyboardKey.S);
+        if (toggle_trails_space) sun_space_trails = !sun_space_trails;
+
         var mouse_down = Raylib.IsMouseButtonDown(MouseButton.Left);
         if (mouse_down)
         {
@@ -114,10 +123,9 @@ public class Game
     {
         if (follow_sun)
         {
-            var c = Raylib.GetScreenCenter();
             var sun = s.SunIndex;
-            offset.X = c.X - s.PX[sun];
-            offset.Y = c.Y - s.PY[sun];
+            offset.X = screen_center.X - s.PX[sun];
+            offset.Y = screen_center.Y - s.PY[sun];
         }
 
         trails_frame_newest = (trails_frame_newest + 1) % TRAIL_LEN_FRAMES;
@@ -175,8 +183,14 @@ public class Game
                     if (skip_particle) continue;
                 }
 
-                var v1 = offset + trails[COUNT * f1 + j]; // [f0 coords] [f1 coords] [...] [fN coords]
-                var v2 = offset + trails[COUNT * f2 + j]; //             \---------\ L = count
+                var offset1 = sun_space_trails
+                    ? offset + positions[s.SunIndex] - trails[COUNT * f1 + s.SunIndex]
+                    : offset;
+                var offset2 = sun_space_trails
+                    ? offset + positions[s.SunIndex] - trails[COUNT * f2 + s.SunIndex]
+                    : offset;
+                var v1 = offset1 + trails[COUNT * f1 + j]; // [f0 coords] [f1 coords] [...] [fN coords]
+                var v2 = offset2 + trails[COUNT * f2 + j]; //             \---------\ L = count
                 Raylib.DrawLineEx(v1, v2, 1, color);
             }
         }
@@ -203,7 +217,7 @@ public class Game
         const string
             help1 = "Particles: [alive / total]",
             help2 = "Trail frames: [count / max count] [oldest / newest]",
-            helpK = "Esc - Quit | F3 - Debug | Enter - Restart | \\ - Follow the Sun | Backspace - Pause | = - Step (when paused) | M1 - Drag space";
+            helpK = "Esc - Quit | F3 - Debug | Enter - Restart | Backspace - Pause | = - Step (when paused) | \\ - Follow the Sun | S - Sun-space trails | M1 - Drag space";
 
         var h = Raylib.GetScreenHeight();
 
@@ -225,4 +239,3 @@ public class Game
 }
 
 // todo launch particles with mouse
-// todo s - sun space trails - get sun offset history probably
