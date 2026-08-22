@@ -82,16 +82,21 @@ public class Game
         Raylib.CloseWindow();
     }
 
+    private void HandleToggle(KeyboardKey key, ref bool field)
+    {
+        var toggle = Raylib.IsKeyPressed(key);
+        if (toggle) field = !field;
+    }
+
     private void HandleInput()
     {
         screen_center = Raylib.GetScreenCenter();
 
-        var toggle_debug = Raylib.IsKeyPressed(KeyboardKey.F3);
-        if (toggle_debug) debug = !debug;
-
-        var toggle_pause = Raylib.IsKeyPressed(KeyboardKey.Backspace);
-        if (toggle_pause) pause = !pause;
-
+        HandleToggle(KeyboardKey.F3,           ref debug);
+        HandleToggle(KeyboardKey.Backspace,    ref pause);
+        HandleToggle(KeyboardKey.Backslash,    ref follow_sun);
+        HandleToggle(KeyboardKey.S,            ref sun_space_trails);
+        
         step_once = pause && Raylib.IsKeyPressed(KeyboardKey.Equal);
 
         var restart = Raylib.IsKeyPressed(KeyboardKey.Enter);
@@ -101,15 +106,6 @@ public class Game
             ResetTrails();
             offset = new Vector2();
         }
-
-        var toggle_follow_sun = Raylib.IsKeyPressed(KeyboardKey.Backslash);
-        if (toggle_follow_sun)
-        {
-            follow_sun = !follow_sun;
-        }
-
-        var toggle_trails_space = Raylib.IsKeyPressed(KeyboardKey.S);
-        if (toggle_trails_space) sun_space_trails = !sun_space_trails;
 
         var mouse_down = Raylib.IsMouseButtonDown(MouseButton.Left);
         if (mouse_down)
@@ -121,6 +117,8 @@ public class Game
 
     private void DoLogic()
     {
+        s.Tick();
+
         if (follow_sun)
         {
             var sun = s.SunIndex;
@@ -128,18 +126,19 @@ public class Game
             offset.Y = screen_center.Y - s.PY[sun];
         }
 
-        trails_frame_newest = (trails_frame_newest + 1) % TRAIL_LEN_FRAMES;
+        // manage trail frames
+        {
+            trails_frame_newest = (trails_frame_newest + 1) % TRAIL_LEN_FRAMES;
 
-        if (trails_frames_count == TRAIL_LEN_FRAMES)
-            trails_frame_oldest = (trails_frame_oldest + 1) % TRAIL_LEN_FRAMES;
-        else
-            trails_frames_count++;
-
-        s.Tick();
+            if (trails_frames_count == TRAIL_LEN_FRAMES)
+                trails_frame_oldest = (trails_frame_oldest + 1) % TRAIL_LEN_FRAMES;
+            else
+                trails_frames_count++;
+        }
 
         for (var i = 0; i < COUNT; i++)
         {
-            if (!s.ON[i])
+            if (!s.ON[i]) // manage dead particles trails
             {
                 ref var
                     leftover_frames = ref trails_lo[i];
@@ -151,6 +150,7 @@ public class Game
                 continue;
             }
 
+            // store particle position for trails
             var x = s.PX[i];
             var y = s.PY[i];
             positions[i] = trails[COUNT * trails_frame_newest + i] = new Vector2(x, y);
@@ -195,6 +195,7 @@ public class Game
             }
         }
     }
+
     private void DrawParticles()
     {
         for (var i = 0; i < COUNT; i++)
@@ -212,12 +213,20 @@ public class Game
             Raylib.DrawCircle((int)pos.X, (int)pos.Y, r, color);
         }
     }
+
     private void DrawTextOverlays()
     {
         const string
             help1 = "Particles: [alive / total]",
             help2 = "Trail frames: [count / max count] [oldest / newest]",
-            helpK = "Esc - Quit | F3 - Debug | Enter - Restart | Backspace - Pause | = - Step (when paused) | \\ - Follow the Sun | S - Sun-space trails | M1 - Drag space";
+            helpK =  "Esc - Quit"
+                + " | F3 - Debug"
+                + " | Enter - Restart"
+                + " | Backspace - Pause"
+                + " | = - Step (when paused)"
+                + " | \\ - Follow the Sun"
+                + " | S - Sun-space trails"
+                + " | M1 - Drag space";
 
         var h = Raylib.GetScreenHeight();
 
@@ -239,3 +248,4 @@ public class Game
 }
 
 // todo launch particles with mouse
+// todo paused game - update positions on restart / sun focus toggle
