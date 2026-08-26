@@ -70,6 +70,7 @@ public class Game
             HandleInput();
 
             if (!pause || step_once) DoLogic();
+            else                     DoLogic_Pause();
 
             Raylib.BeginDrawing();
             Raylib.ClearBackground(Color.Black);
@@ -115,16 +116,23 @@ public class Game
         }
     }
 
+    private void DoLogic_Pause()
+    {
+        for (var i = 0; i < COUNT; i++)
+        {
+            var x = s.PX[i];
+            var y = s.PY[i];
+            positions[i] = new Vector2(x, y);
+        }
+
+        if (follow_sun) FollowSun();
+    }
+
     private void DoLogic()
     {
         s.Tick();
 
-        if (follow_sun)
-        {
-            var sun = s.SunIndex;
-            offset.X = screen_center.X - s.PX[sun];
-            offset.Y = screen_center.Y - s.PY[sun];
-        }
+        if (follow_sun) FollowSun();
 
         // manage trail frames
         {
@@ -155,6 +163,13 @@ public class Game
             var y = s.PY[i];
             positions[i] = trails[COUNT * trails_frame_newest + i] = new Vector2(x, y);
         }
+    }
+
+    private void FollowSun()
+    {
+        var sun = s.SunIndex;
+        offset.X = screen_center.X - s.PX[sun];
+        offset.Y = screen_center.Y - s.PY[sun];
     }
 
     private void DrawTrails()
@@ -248,4 +263,3 @@ public class Game
 }
 
 // todo launch particles with mouse
-// todo paused game - update positions on restart / sun focus toggle
