@@ -150,7 +150,8 @@ public class Simulation
         {
             var huge = ri > rj ? i : j;
             var tiny = ri > rj ? j : i;
-            MI[tiny] = huge; // tiny store huge index, so 2+ tiny can be merged into 1 huge
+            var  added_already = MI[huge] == tiny; // can happen if mass is equal
+            if (!added_already)  MI[tiny] =  huge; // tiny store huge index, so 2+ tiny can be merged into 1 huge
         }
         var m = M[j];
         var ax = G * m * dx / (d * d * d);
@@ -213,5 +214,28 @@ public class Simulation
     private float CalculateRadius(int i)
     {
         return (float)Math.Pow(0.75 * M[i] / Math.PI, 1 / 3.0);
+    }
+
+    public int LaunchParticle(float px, float py, float vx, float vy, int mass)
+    {
+        var count = M.Length;
+        int  i;
+        for (i = 0; i < count; i++)
+        {
+            if (!ON[i]) break;
+        }
+
+        ON[i] = true;
+        PX[i] = px;
+        PY[i] = py;
+        VX[i] = vx;
+        VY[i] = vy;
+        M [i] = mass;
+        R [i] = CalculateRadius(i);
+        MI[i] = NO_MERGE;
+        ActiveCount++;
+        SunIndex = FindSunIndex();
+
+        return i;
     }
 }

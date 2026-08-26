@@ -18,7 +18,11 @@ public class Game
         FOLLOW_SUN_DEFAULT = true;
 
     private const float
-        RADIUS_MULTIPLIER = 1.0F;
+        RADIUS_MULTIPLIER = 1.0F,
+        NEW_PARTICLE_V_MULT = 0.1F;
+
+    private static readonly Vector2
+        V2_INVALID = new(-1, -1);
 
     // game state
     private readonly Simulation s = new();
@@ -27,6 +31,7 @@ public class Game
     private bool step_once;
     private bool follow_sun = SUN && FOLLOW_SUN_DEFAULT;
     private bool sun_space_trails = false;
+    private bool launch_mode = false;
     private Vector2 offset;
     private readonly Vector2[] positions = new Vector2[COUNT]; // (for convenience)
 
@@ -37,6 +42,11 @@ public class Game
     private int trails_frame_newest; // n
     private int trails_frame_oldest; // o
     private int trails_frames_count; // tfc
+
+    // launching particle
+    private Vector2 drag_start = V2_INVALID;
+    private Vector2 drag;
+    private Vector2 new_pos = V2_INVALID;
 
     // temporary
     private Vector2 screen_center;
@@ -76,6 +86,7 @@ public class Game
             Raylib.ClearBackground(Color.Black);
             DrawTrails();
             DrawParticles();
+            if (drag_start != V2_INVALID) DrawLaunch();
             DrawTextOverlays();
             Raylib.EndDrawing();
         }
@@ -97,6 +108,7 @@ public class Game
         HandleToggle(KeyboardKey.Backspace,    ref pause);
         HandleToggle(KeyboardKey.Backslash,    ref follow_sun);
         HandleToggle(KeyboardKey.S,            ref sun_space_trails);
+        HandleToggle(KeyboardKey.D,            ref launch_mode);
         
         step_once = pause && Raylib.IsKeyPressed(KeyboardKey.Equal);
 
@@ -111,13 +123,36 @@ public class Game
         var mouse_down = Raylib.IsMouseButtonDown(MouseButton.Left);
         if (mouse_down)
         {
-            follow_sun = false;
-            offset += Raylib.GetMouseDelta();
+            if (launch_mode)
+            {
+                if (drag_start == V2_INVALID)
+                {
+                    drag_start = Raylib.GetMousePosition();
+                    drag = Vector2.Zero;
+                }
+
+                drag += Raylib.GetMouseDelta();
+            }
+            else // drag space
+            {
+                follow_sun = false;
+                offset += Raylib.GetMouseDelta();
+            }
+        }
+        else
+        {
+            if (drag_start != V2_INVALID)
+            {
+                new_pos = drag_start - offset;
+                drag_start = V2_INVALID;
+            }
         }
     }
 
     private void DoLogic_Pause()
     {
+        HandleParticleLaunch();
+
         for (var i = 0; i < COUNT; i++)
         {
             var x = s.PX[i];
@@ -130,6 +165,8 @@ public class Game
 
     private void DoLogic()
     {
+        HandleParticleLaunch();
+
         s.Tick();
 
         if (follow_sun) FollowSun();
@@ -162,6 +199,18 @@ public class Game
             var x = s.PX[i];
             var y = s.PY[i];
             positions[i] = trails[COUNT * trails_frame_newest + i] = new Vector2(x, y);
+        }
+    }
+
+    private void HandleParticleLaunch()
+    {
+        if (new_pos != V2_INVALID && s.ActiveCount < COUNT)
+        {
+            var velocity = drag * NEW_PARTICLE_V_MULT;
+            var i = s.LaunchParticle(new_pos.X, new_pos.Y, velocity.X, velocity.Y, 200);
+            trails_lo[i] = -1;
+            trails_td[i] = -1;
+            new_pos = V2_INVALID;
         }
     }
 
@@ -229,6 +278,12 @@ public class Game
         }
     }
 
+    private void DrawLaunch()
+    {
+        Raylib.DrawCircleV(drag_start, 5, Color.Green);
+        Raylib.DrawLineEx(drag_start, drag_start + drag, 1, Color.Green);
+    }
+
     private void DrawTextOverlays()
     {
         const string
@@ -241,7 +296,8 @@ public class Game
                 + " | = - Step (when paused)"
                 + " | \\ - Follow the Sun"
                 + " | S - Sun-space trails"
-                + " | M1 - Drag space";
+                + " | D - Launch mode"
+                + " | M1 - Drag space / launch particle";
 
         var h = Raylib.GetScreenHeight();
 
@@ -263,3 +319,5 @@ public class Game
 }
 
 // todo launch particles with mouse
+// todo fix trails for new particles
+// store a number of last frames to draw?
