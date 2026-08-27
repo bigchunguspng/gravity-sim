@@ -57,7 +57,7 @@ public class Simulation
         {
             ON[i] = true;
             M [i] = (float)Math.Pow(Math.E, M[i]); // distribute mass exponentially
-            R [i] = CalculateRadius(i);
+            R [i] = GetRadius(i);
             MI[i] = NO_MERGE;
         }
     }
@@ -187,7 +187,7 @@ public class Simulation
         var mN = m1 + m2;
         // Combine mass, update radius
         M[huge] = mN;
-        R[huge] = CalculateRadius(huge);
+        R[huge] = GetRadius(huge);
 
         // velocity
         var vx1 = VX[huge];
@@ -211,12 +211,17 @@ public class Simulation
         ActiveCount--;
     }
 
-    private float CalculateRadius(int i)
+    private float GetRadius(int i)
     {
-        return (float)Math.Pow(0.75 * M[i] / Math.PI, 1 / 3.0);
+        return CalculateRadius(M[i]);
     }
 
-    public int LaunchParticle(float px, float py, float vx, float vy, int mass)
+    public float CalculateRadius(float mass)
+    {
+        return (float)Math.Pow(0.75 * mass / Math.PI, 1 / 3.0);
+    }
+
+    public int LaunchParticle(float px, float py, float vx, float vy, float mass)
     {
         var count = M.Length;
         int  i;
@@ -231,7 +236,7 @@ public class Simulation
         VX[i] = vx;
         VY[i] = vy;
         M [i] = mass;
-        R [i] = CalculateRadius(i);
+        R [i] = GetRadius(i);
         MI[i] = NO_MERGE;
         ActiveCount++;
         SunIndex = FindSunIndex();

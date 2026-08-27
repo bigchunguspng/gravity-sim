@@ -32,6 +32,7 @@ public class Game
     private bool follow_sun = SUN && FOLLOW_SUN_DEFAULT;
     private bool sun_space_trails = false;
     private bool launch_mode = false;
+    private float new_particle_mass = 100;
     private Vector2 offset;
     private readonly Vector2[] positions = new Vector2[COUNT]; // (for convenience)
 
@@ -82,8 +83,9 @@ public class Game
             Raylib.BeginDrawing();
             Raylib.ClearBackground(Color.Black);
             DrawTrails();
+            if (drag_start != V2_INVALID) DrawLaunchHandle();
+            else if (launch_mode)         DrawLaunchCursor();
             DrawParticles();
-            if (drag_start != V2_INVALID) DrawLaunch();
             DrawTextOverlays();
             Raylib.EndDrawing();
         }
@@ -97,6 +99,11 @@ public class Game
         if (toggle) field = !field;
     }
 
+    private bool IsKeyPressed_OnceOrRepeat(KeyboardKey key)
+    {
+        return Raylib.IsKeyPressed(key) || Raylib.IsKeyPressedRepeat(key);
+    }
+
     private void HandleInput()
     {
         screen_center = Raylib.GetScreenCenter();
@@ -107,8 +114,20 @@ public class Game
         HandleToggle(KeyboardKey.S,            ref sun_space_trails);
         HandleToggle(KeyboardKey.D,            ref launch_mode);
         
-        step_once = pause && Raylib.IsKeyPressed(KeyboardKey.Equal);
+        step_once = pause && IsKeyPressed_OnceOrRepeat(KeyboardKey.Equal);
 
+        if (launch_mode)
+        {
+            var more_mass
+                =  IsKeyPressed_OnceOrRepeat(KeyboardKey.KpAdd)
+                || IsKeyPressed_OnceOrRepeat(KeyboardKey.Equal);
+            var less_mass
+                =  IsKeyPressed_OnceOrRepeat(KeyboardKey.KpSubtract)
+                || IsKeyPressed_OnceOrRepeat(KeyboardKey.Minus);
+            if (more_mass) new_particle_mass = (float)Math.Clamp(new_particle_mass * 1.5, 1, 16000);
+            if (less_mass) new_particle_mass = (float)Math.Clamp(new_particle_mass / 1.5, 1, 16000);
+        }
+        
         var restart = Raylib.IsKeyPressed(KeyboardKey.Enter);
         if (restart)
         {
@@ -198,7 +217,7 @@ public class Game
         if (new_pos != V2_INVALID && s.ActiveCount < COUNT)
         {
             var velocity = drag * NEW_PARTICLE_V_MULT;
-            var i = s.LaunchParticle(new_pos.X, new_pos.Y, velocity.X, velocity.Y, 200);
+            var i = s.LaunchParticle(new_pos.X, new_pos.Y, velocity.X, velocity.Y, new_particle_mass);
             dbg_trail = i;
             trails_off[i] = (trails_off[s.SunIndex] + trails_len[s.SunIndex]) % TRAIL_LEN_FRAMES;
             trails_len[i] = 0; // ^ sync with sun
@@ -271,10 +290,18 @@ public class Game
         }
     }
 
-    private void DrawLaunch()
+    private void DrawLaunchCursor()
     {
-        Raylib.DrawCircleV(drag_start, 5, Color.Green);
-        Raylib.DrawLineEx(drag_start, drag_start + drag, 1, Color.Green);
+        var mouse = Raylib.GetMousePosition();
+        var r = s.CalculateRadius(new_particle_mass);
+        Raylib.DrawCircleV(mouse, r, Color.DarkGray);
+    }
+
+    private void DrawLaunchHandle()
+    {
+        var r = s.CalculateRadius(new_particle_mass);
+        Raylib.DrawCircleV(drag_start, r, Color.Gold);
+        Raylib.DrawLineEx(drag_start, drag_start + drag, 1, Color.Gold);
     }
 
     private void DrawTextOverlays()
@@ -309,5 +336,18 @@ public class Game
             int TextHeight() => 10 + 30 * row++;
         }
         Raylib.DrawText(helpK, posX: 10, posY: h - 20, fontSize: 10, Color.LightGray);
+
+        if (launch_mode)
+        {
+            var cx = (int)screen_center.X;
+            DrawText_Centered("== launch particle ==",                      cx, 10, 20, Color.White);
+            DrawText_Centered($"Mass [change +/-]: {new_particle_mass:F2}", cx, 35, 10, Color.White);
+        }
+    }
+
+    private void DrawText_Centered(string text, int posX, int posY, int fontSize, Color color)
+    {
+        var width = Raylib.MeasureText(text, fontSize);
+        Raylib.DrawText(text, posX - width / 2, posY, fontSize, color);
     }
 }
