@@ -36,12 +36,11 @@ public class Game
     private readonly Vector2[] positions = new Vector2[COUNT]; // (for convenience)
 
     // trails
-    private readonly Vector2[] trails    = new Vector2[COUNT * TRAIL_LEN_FRAMES];
-    private readonly int[] trails_lo = new  int[COUNT]; // leftover frames counts for dead particles: 600 -> 0
-    private readonly int[] trails_td = new  int[COUNT]; // tfc value at particle death
-    private int trails_frame_newest; // n
-    private int trails_frame_oldest; // o
-    private int trails_frames_count; // tfc
+    private readonly Vector2[] trails = new Vector2[COUNT * TRAIL_LEN_FRAMES]; // [p0 frames][p1 frames][…]
+    private readonly int[] trails_off = new     int[COUNT]; // trail offset (first frame)
+    private readonly int[] trails_len = new     int[COUNT]; // trail length
+    private readonly int[] trails_mvf = new     int[COUNT]; // max visible frames (ON 600, OFF 599->0)
+    private int dbg_trail = 0; // index of particle to debug trail
 
     // launching particle
     private Vector2 drag_start = V2_INVALID;
@@ -59,11 +58,9 @@ public class Game
     private void ResetTrails()
     {
         Array.Clear(trails);
-        Array.Fill(trails_lo, -1);
-        Array.Fill(trails_td, -1);
-        trails_frame_newest = -1;
-        trails_frame_oldest = 0;
-        trails_frames_count = 0;
+        Array.Clear(trails_off);
+        Array.Clear(trails_len);
+        Array.Fill(trails_mvf, TRAIL_LEN_FRAMES);
     }
 
     public void Run()
@@ -171,34 +168,28 @@ public class Game
 
         if (follow_sun) FollowSun();
 
-        // manage trail frames
-        {
-            trails_frame_newest = (trails_frame_newest + 1) % TRAIL_LEN_FRAMES;
-
-            if (trails_frames_count == TRAIL_LEN_FRAMES)
-                trails_frame_oldest = (trails_frame_oldest + 1) % TRAIL_LEN_FRAMES;
-            else
-                trails_frames_count++;
-        }
-
         for (var i = 0; i < COUNT; i++)
         {
-            if (!s.ON[i]) // manage dead particles trails
+            ref var len = ref trails_len[i];
+            ref var off = ref trails_off[i];
+            ref var mvf = ref trails_mvf[i];
+            if (s.ON[i])
             {
-                ref var
-                    leftover_frames = ref trails_lo[i];
-                if (leftover_frames == -1)
-                    leftover_frames = trails_td[i] = trails_frames_count;
-                if (leftover_frames > 0 && trails_frames_count == TRAIL_LEN_FRAMES)
-                    leftover_frames--;
+                // store particle position for trails
+                var x = s.PX[i];
+                var y = s.PY[i];
+                positions[i] = trails[i * TRAIL_LEN_FRAMES + (off + len) % TRAIL_LEN_FRAMES] = new Vector2(x, y);
 
-                continue;
+                if (len < TRAIL_LEN_FRAMES)
+                    len++;
+                else
+                    off = (off + 1) % TRAIL_LEN_FRAMES;
             }
-
-            // store particle position for trails
-            var x = s.PX[i];
-            var y = s.PY[i];
-            positions[i] = trails[COUNT * trails_frame_newest + i] = new Vector2(x, y);
+            else // OFF
+            {
+                if (mvf > 0)
+                    mvf--;
+            }
         }
     }
 
@@ -208,8 +199,10 @@ public class Game
         {
             var velocity = drag * NEW_PARTICLE_V_MULT;
             var i = s.LaunchParticle(new_pos.X, new_pos.Y, velocity.X, velocity.Y, 200);
-            trails_lo[i] = -1;
-            trails_td[i] = -1;
+            dbg_trail = i;
+            trails_off[i] = (trails_off[s.SunIndex] + trails_len[s.SunIndex]) % TRAIL_LEN_FRAMES;
+            trails_len[i] = 0; // ^ sync with sun
+            trails_mvf[i] = TRAIL_LEN_FRAMES;
             new_pos = V2_INVALID;
         }
     }
@@ -223,38 +216,38 @@ public class Game
 
     private void DrawTrails()
     {
-        for (var i = 0; i < trails_frames_count - 1; i++)
+        var sun = s.SunIndex;
+
+        for (var i = 0; i < COUNT; i++) // for each particle
         {
-            var f1 = (trails_frame_oldest + i) % TRAIL_LEN_FRAMES;
-            var f2 =                  (f1 + 1) % TRAIL_LEN_FRAMES;
+            var off = trails_off[i];
+            var len = trails_len[i];
+            var mvf = trails_mvf[i];
 
-            var rb = (double)i / trails_frames_count; // relative brightness
-            var v = (byte)(128 * rb);
-            var color = new Color(v, v, v);
+            if (len < 2 || mvf <= 0) continue;
 
-            for (var j = 0; j < COUNT; j++) // for each particle
+            var f0 = Math.Max(0, len - mvf);
+            for (var f = f0; f < len - 1; f++) // for each visible frame
             {
-                if (!s.ON[j])
-                {
-                    var lo = trails_lo[j]; // number of leftover frames
-                    if (lo == 0) continue;
+                var f1 = (off + f)     % TRAIL_LEN_FRAMES;
+                var f2 = (off + f + 1) % TRAIL_LEN_FRAMES;
 
-                    var tfc_at_death = trails_td[j];
-                    var skip_particle = trails_frames_count < TRAIL_LEN_FRAMES || tfc_at_death < trails_frames_count
-                        //              ^ buffer not full                      OR particle died when buffer wasn't full
-                        ? i >= tfc_at_death - 2 - trails_frame_oldest
-                        : i >= lo - 1;
-                    if (skip_particle) continue;
+                var offset1 = offset;
+                var offset2 = offset;
+                if (sun_space_trails)
+                {
+                    offset1 += positions[sun] - trails[sun * TRAIL_LEN_FRAMES + f1];
+                    offset2 += positions[sun] - trails[sun * TRAIL_LEN_FRAMES + f2];
                 }
 
-                var offset1 = sun_space_trails
-                    ? offset + positions[s.SunIndex] - trails[COUNT * f1 + s.SunIndex]
-                    : offset;
-                var offset2 = sun_space_trails
-                    ? offset + positions[s.SunIndex] - trails[COUNT * f2 + s.SunIndex]
-                    : offset;
-                var v1 = offset1 + trails[COUNT * f1 + j]; // [f0 coords] [f1 coords] [...] [fN coords]
-                var v2 = offset2 + trails[COUNT * f2 + j]; //             \---------\ L = count
+                var v1 = offset1 + trails[i * TRAIL_LEN_FRAMES + f1];
+                var v2 = offset2 + trails[i * TRAIL_LEN_FRAMES + f2];
+
+                var mb = len + TRAIL_LEN_FRAMES - mvf; // max brightness
+                var rb = (double)(f - f0) / mb;   // relative brightness
+                const byte c = 255;
+                var color = new Color(c, c, c, (byte)(128 * rb));
+
                 Raylib.DrawLineEx(v1, v2, 1, color);
             }
         }
@@ -288,7 +281,7 @@ public class Game
     {
         const string
             help1 = "Particles: [alive / total]",
-            help2 = "Trail frames: [count / max count] [oldest / newest]",
+            help2 = "Trail frames: [particle index: max visible] [offset + count / max count]",
             helpK =  "Esc - Quit"
                 + " | F3 - Debug"
                 + " | Enter - Restart"
@@ -304,20 +297,17 @@ public class Game
         if (debug)
         {
             var row = 0;
+            var i = dbg_trail;
 
             Raylib.DrawFPS(10, TextHeight());
-            Raylib.DrawText($"{s.ActiveCount}/{COUNT}",                     10, TextHeight(), 20, Color.Blue);
-            Raylib.DrawText($"{trails_frames_count}/{TRAIL_LEN_FRAMES}",    10, TextHeight(), 20, Color.Red);
-            Raylib.DrawText($"{trails_frame_oldest}/{trails_frame_newest}", 10, TextHeight(), 20, Color.Red);
-            Raylib.DrawText(help1,                                          10,       h - 40, 10, Color.Blue);
-            Raylib.DrawText(help2,                                         150,       h - 40, 10, Color.Red);
+            Raylib.DrawText($"{s.ActiveCount}/{COUNT}",                            10, TextHeight(), 20, Color.Blue);
+            Raylib.DrawText($"{i}: {trails_mvf[i]}",                               10, TextHeight(), 20, Color.Red);
+            Raylib.DrawText($"{trails_off[i]}+{trails_len[i]}/{TRAIL_LEN_FRAMES}", 10, TextHeight(), 20, Color.Red);
+            Raylib.DrawText(help1,                                                 10,       h - 40, 10, Color.Blue);
+            Raylib.DrawText(help2,                                                150,       h - 40, 10, Color.Red);
 
             int TextHeight() => 10 + 30 * row++;
         }
         Raylib.DrawText(helpK, posX: 10, posY: h - 20, fontSize: 10, Color.LightGray);
     }
 }
-
-// todo launch particles with mouse
-// todo fix trails for new particles
-// store a number of last frames to draw?
