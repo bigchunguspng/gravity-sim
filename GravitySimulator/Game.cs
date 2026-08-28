@@ -26,6 +26,7 @@ public class Game
 
     // game state
     private readonly Simulation s = new();
+    private bool hud = true;
     private bool debug = true;
     private bool pause;
     private bool step_once;
@@ -86,7 +87,7 @@ public class Game
             if (drag_start != V2_INVALID) DrawLaunchHandle();
             else if (launch_mode)         DrawLaunchCursor();
             DrawParticles();
-            DrawTextOverlays();
+            if (hud) DrawTextOverlays();
             Raylib.EndDrawing();
         }
 
@@ -108,6 +109,7 @@ public class Game
     {
         screen_center = Raylib.GetScreenCenter();
 
+        HandleToggle(KeyboardKey.F1,           ref hud);
         HandleToggle(KeyboardKey.F3,           ref debug);
         HandleToggle(KeyboardKey.Backspace,    ref pause);
         HandleToggle(KeyboardKey.Backslash,    ref follow_sun);
@@ -120,10 +122,10 @@ public class Game
         {
             var more_mass
                 =  IsKeyPressed_OnceOrRepeat(KeyboardKey.KpAdd)
-                || IsKeyPressed_OnceOrRepeat(KeyboardKey.Equal);
+                || IsKeyPressed_OnceOrRepeat(KeyboardKey.RightBracket);
             var less_mass
                 =  IsKeyPressed_OnceOrRepeat(KeyboardKey.KpSubtract)
-                || IsKeyPressed_OnceOrRepeat(KeyboardKey.Minus);
+                || IsKeyPressed_OnceOrRepeat(KeyboardKey.LeftBracket);
             if (more_mass) new_particle_mass = (float)Math.Clamp(new_particle_mass * 1.5, 1, 16000);
             if (less_mass) new_particle_mass = (float)Math.Clamp(new_particle_mass / 1.5, 1, 16000);
         }
@@ -310,6 +312,7 @@ public class Game
             help1 = "Particles: [alive / total]",
             help2 = "Trail frames: [particle index: max visible] [offset + count / max count]",
             helpK =  "Esc - Quit"
+                + " | F1 - HUD"
                 + " | F3 - Debug"
                 + " | Enter - Restart"
                 + " | Backspace - Pause"
@@ -340,8 +343,8 @@ public class Game
         if (launch_mode)
         {
             var cx = (int)screen_center.X;
-            DrawText_Centered("== launch particle ==",                      cx, 10, 20, Color.White);
-            DrawText_Centered($"Mass [change +/-]: {new_particle_mass:F2}", cx, 35, 10, Color.White);
+            DrawText_Centered("== launch particle ==",                            cx, 10, 20, Color.White);
+            DrawText_Centered($"Mass: {new_particle_mass:F2} | change: -+ or []", cx, 35, 10, Color.White);
         }
     }
 
