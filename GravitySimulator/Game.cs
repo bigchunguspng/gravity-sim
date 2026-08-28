@@ -19,10 +19,10 @@ public class Game
 
     private const float
         RADIUS_MULTIPLIER = 1.0F,
-        NEW_PARTICLE_V_MULT = 0.1F;
+        NEW_PARTICLE_VELOCITY_MULTIPLIER = 0.05F;
 
     private static readonly Vector2
-        V2_INVALID = new(-1, -1);
+        V2_UNSET = new(-1, -1);
 
     // game state
     private readonly Simulation s = new();
@@ -45,9 +45,9 @@ public class Game
     private int dbg_trail = 0; // index of particle to debug trail
 
     // launching particle
-    private Vector2 drag_start = V2_INVALID;
-    private Vector2 drag;
-    private Vector2 new_pos = V2_INVALID;
+    private Vector2 drag_from = V2_UNSET;
+    private Vector2 drag_to;
+    private Vector2 new_particle_pos = V2_UNSET;
 
     // temporary
     private Vector2 screen_center;
@@ -84,8 +84,8 @@ public class Game
             Raylib.BeginDrawing();
             Raylib.ClearBackground(Color.Black);
             DrawTrails();
-            if (drag_start != V2_INVALID) DrawLaunchHandle();
-            else if (launch_mode)         DrawLaunchCursor();
+            if (drag_from != V2_UNSET) DrawLaunchHandle();
+            else if (launch_mode)      DrawLaunchCursor();
             DrawParticles();
             if (hud) DrawTextOverlays();
             Raylib.EndDrawing();
@@ -143,13 +143,12 @@ public class Game
         {
             if (launch_mode)
             {
-                if (drag_start == V2_INVALID)
-                {
-                    drag_start = Raylib.GetMousePosition();
-                    drag = Vector2.Zero;
-                }
+                var mouse = Raylib.GetMousePosition();
 
-                drag += Raylib.GetMouseDelta();
+                if (drag_from == V2_UNSET) // if start dragging (launching)
+                    drag_from = mouse;
+
+                drag_to = mouse;
             }
             else // drag space
             {
@@ -157,12 +156,11 @@ public class Game
                 offset += Raylib.GetMouseDelta();
             }
         }
-        else
+        else // mouse up
         {
-            if (drag_start != V2_INVALID)
+            if (drag_from != V2_UNSET) // if dragging (launching)
             {
-                new_pos = drag_start - offset;
-                drag_start = V2_INVALID;
+                new_particle_pos = drag_from - offset;
             }
         }
     }
@@ -216,15 +214,16 @@ public class Game
 
     private void HandleParticleLaunch()
     {
-        if (new_pos != V2_INVALID && s.ActiveCount < COUNT)
+        if (new_particle_pos != V2_UNSET && s.ActiveCount < COUNT)
         {
-            var velocity = drag * NEW_PARTICLE_V_MULT;
-            var i = s.LaunchParticle(new_pos.X, new_pos.Y, velocity.X, velocity.Y, new_particle_mass);
+            var p = new_particle_pos;
+            var v = (drag_to - drag_from) * NEW_PARTICLE_VELOCITY_MULTIPLIER;
+            var i = s.LaunchParticle(p.X, p.Y, v.X, v.Y, new_particle_mass);
             dbg_trail = i;
             trails_off[i] = (trails_off[s.SunIndex] + trails_len[s.SunIndex]) % TRAIL_LEN_FRAMES;
             trails_len[i] = 0; // ^ sync with sun
             trails_mvf[i] = TRAIL_LEN_FRAMES;
-            new_pos = V2_INVALID;
+            new_particle_pos = drag_from = V2_UNSET;
         }
     }
 
@@ -302,8 +301,8 @@ public class Game
     private void DrawLaunchHandle()
     {
         var r = s.CalculateRadius(new_particle_mass);
-        Raylib.DrawCircleV(drag_start, r, Color.Gold);
-        Raylib.DrawLineEx(drag_start, drag_start + drag, 1, Color.Gold);
+        Raylib.DrawCircleV(drag_from, r, Color.Gold);
+        Raylib.DrawLineEx(drag_from, drag_to, 1, Color.Gold);
     }
 
     private void DrawTextOverlays()
