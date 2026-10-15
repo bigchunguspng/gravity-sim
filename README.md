@@ -21,9 +21,9 @@ The trickiest part was implementing trails (especially for dead particles).
 
 ## How to check it out
 
-1. Make sure you have [.NET Runtime 8.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) (or higher version) installed. Run `dotnet --info` in terminal to check this.
-2. Go to [releases](https://github.com/bigchunguspng/gravity-sim/releases) and download archive for your OS.
-3. Unpack it anywhere you like and launch the app.
+1. Go to [releases](https://github.com/bigchunguspng/gravity-sim/releases) and download archive for your OS.
+2. Unpack it anywhere you like
+3. Launch the app.
 
 ## Screenshorts
 
@@ -35,3 +35,17 @@ The trickiest part was implementing trails (especially for dead particles).
 
 ![Screenshot 2026-08-27 115458](https://github.com/user-attachments/assets/8b37e33b-1e04-42a3-ac91-f30fd144b1dc)
 ![Screenshot 2026-08-27 115437](https://github.com/user-attachments/assets/c9b397cb-c2bb-428d-8042-11d2faa9a809)
+
+## How to publish as AOT
+
+```powershell
+dotnet publish .\GravitySimulator\GravitySimulator.csproj -r win-x64 -c Release --self-contained
+cd GravitySimulator\bin\Release\net10.0\win-x64\publish
+Compress-Archive -Path "GravitySimulator.exe", "raylib.dll" -DestinationPath "gravity-simulator-win-x64.zip"
+```
+
+```bash
+dotnet publish ./GravitySimulator/GravitySimulator.csproj -r linux-x64 -c Release --self-contained
+cd GravitySimulator/bin/Release/net10.0/linux-x64/publish
+zip gravity-simulator-linux-x64.zip GravitySimulator libraylib.so
+```
